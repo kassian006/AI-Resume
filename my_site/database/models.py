@@ -5,6 +5,19 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
 
+class UserProfile(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    location_preference: Mapped[Optional[str]] = mapped_column(String(50), default="KG")  # "KG" или "INT"
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    resumes: Mapped[List["Resume"]] = relationship("Resume", back_populates="user", cascade="all, delete-orphan")
+
+    __table_args__ = (Index("ix_users_email", "email"),)
+
+
 class Resume(Base):
     __tablename__ = "resumes"
 
@@ -18,6 +31,8 @@ class Resume(Base):
 
     job_matches: Mapped[List["JobMatch"]] = relationship("JobMatch", back_populates="resume",
                                                          cascade="all, delete-orphan")
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)
+    user: Mapped[Optional["UserProfile"]] = relationship("UserProfile", back_populates="resumes")
 
     __table_args__ = (Index("ix_resumes_company", "company"),
         Index("ix_resumes_created_at", "created_at"),)

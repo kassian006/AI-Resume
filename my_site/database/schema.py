@@ -1,7 +1,18 @@
 from __future__ import annotations
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    location: Optional[str] = "KG"  # "KG" или "INT"
+
+class LoginResponse(BaseModel):
+    user_id: int
+    email: str
+    location: str
+    token: str  # Для демо — просто строка
 
 
 class ImprovementItem(BaseModel):

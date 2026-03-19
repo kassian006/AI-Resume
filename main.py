@@ -9,6 +9,7 @@ from my_site.config import ALLOWED_ORIGINS
 
 # ✅ твои роутеры
 from my_site.api.resumes import resumes_router
+from my_site.api.auth import auth_router
 from my_site.api.jobs import jobs_router
 
 app = FastAPI(title="AI Resume Analyzer API")
@@ -28,6 +29,7 @@ app.mount("/media", StaticFiles(directory="media"), name="media")
 # ✅ подключаем роутеры
 app.include_router(resumes_router)
 app.include_router(jobs_router)
+app.include_router(auth_router)
 
 
 @app.get("/")
