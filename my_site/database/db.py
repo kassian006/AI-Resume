@@ -1,16 +1,20 @@
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.engine import create_engine
 from typing import Generator
-import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
+from my_site.config import DATABASE_URL
 
-DB_URL = os.getenv('DATABASE_URL')
 
-engine = create_engine(DB_URL)
+class Base(DeclarativeBase):
+    pass
 
-SessionLocal = sessionmaker(bind=engine)
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
 
-Base = declarative_base()
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True, connect_args=connect_args)
+
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
+
 
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()

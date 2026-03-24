@@ -1,32 +1,108 @@
-from __future__ import annotations
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
 from my_site.database.db import get_db
-from my_site.database.schema import LoginRequest, LoginResponse
-from my_site.database import models
+from my_site.database.models import User, RefreshToken
+from my_site.database.schema import (
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    TokenResponse,
+    MessageResponse,
+    RefreshTokenRequest,
+)
+from my_site.core.security import (
+    get_password_hash,
+    create_access_token,
+    create_refresh_token,
+    authenticate_user,
+    get_current_user,
+)
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
-@auth_router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """Быстрый вход/регистрация по email"""
 
-    # Ищем или создаём пользователя
-    user = db.query(models.UserProfile).filter(models.UserProfile.email == request.email).first()
+@auth_router.post("/register/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    email_db = db.query(User).filter(User.email == user.email).first()
+    if email_db:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already exists",
+        )
 
-    if not user:
-        user = models.UserProfile(email=request.email, location_preference=request.location)
-
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-    # Для демо: простой "токен" (в реальном проекте — JWT)
-    demo_token = f"demo_{user.id}_{request.location}"
-
-    return LoginResponse(
-        user_id=user.id,
+    new_user = User(
         email=user.email,
-        location=request.location or user.location_preference,
-        token=demo_token
+        password_hash=get_password_hash(user.password),
     )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+@auth_router.post("/login/", response_model=TokenResponse)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    user_db = authenticate_user(db, user.email, user.password)
+    if not user_db:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    access_token = create_access_token({"sub": str(user_db.id)})
+    refresh_token = create_refresh_token({"sub": str(user_db.id)})
+
+    refresh_db = RefreshToken(user_id=user_db.id, token=refresh_token)
+    db.add(refresh_db)
+    db.commit()
+
+    return TokenResponse(
+        token_type="bearer",
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
+
+
+@auth_router.post("/logout/", response_model=MessageResponse)
+def logout(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    stored_token = db.query(RefreshToken).filter(
+        RefreshToken.token == payload.refresh_token
+    ).first()
+
+    if not stored_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+
+    db.delete(stored_token)
+    db.commit()
+
+    return MessageResponse(message="Logged out successfully")
+
+
+@auth_router.post("/refresh/", response_model=TokenResponse)
+def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    stored_token = db.query(RefreshToken).filter(
+        RefreshToken.token == payload.refresh_token
+    ).first()
+
+    if not stored_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+
+    access_token = create_access_token({"sub": str(stored_token.user_id)})
+
+    return TokenResponse(
+        token_type="bearer",
+        access_token=access_token,
+        refresh_token=payload.refresh_token,
+    )
+
+
+@auth_router.get("/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
