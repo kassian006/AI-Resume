@@ -344,3 +344,66 @@ ResumeSessionDetailResponse.model_rebuild()
 ResumeImprovementIterationResponse.model_rebuild()
 JobResponse.model_rebuild()
 JobMatchResponse.model_rebuild()
+
+
+class ResumeUploadResponse(BaseModel):
+    resume_file_id: int
+    session_id: int
+    version_id: int
+    filename: str
+    extracted_chars: int
+    message: str
+
+
+class ResumeUploadQueuedResponse(BaseModel):
+    resume_file_id: int
+    session_id: int
+    filename: str
+    status: str
+    message: str
+
+
+class ResumeImprovementErrorItem(BaseModel):
+    original: str
+    improved: str
+    advice: str
+
+
+class ResumeVersionBriefResponse(BaseModel):
+    id: int
+    version_no: int
+    source_type: ResumeSourceType
+    raw_text: str
+    structured_json: Optional[dict[str, Any]] = None
+    created_at: datetime
+
+
+class ResumeSessionResultResponse(BaseModel):
+    errors: list[ResumeImprovementErrorItem] = Field(default_factory=list)
+    summary: Optional[str] = None
+
+
+class ResumeSessionDetailResponse(BaseModel):
+    session_id: int
+    resume_file_id: int
+    filename: str
+    status: SessionStatus
+    current_iteration: int
+
+    original_version: Optional[ResumeVersionBriefResponse] = None
+    improved_version: Optional[ResumeVersionBriefResponse] = None
+
+    result: ResumeSessionResultResponse = Field(default_factory=ResumeSessionResultResponse)
+
+    created_at: datetime
+    updated_at: datetime
+
+
+class ResumeSessionListItemResponse(BaseModel):
+    session_id: int
+    resume_file_id: int
+    filename: str
+    status: SessionStatus
+    current_iteration: int
+    created_at: datetime
+    updated_at: datetime

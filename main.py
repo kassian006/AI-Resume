@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from my_site.config import ALLOWED_ORIGINS
 from my_site.api.auth import auth_router
+from my_site.api.resumes import resumes_router
 
 
 app = FastAPI(title="AI Resume Analyzer API")
@@ -22,6 +23,7 @@ os.makedirs("media", exist_ok=True)
 app.mount("/media", StaticFiles(directory="media"), name="media")
 
 app.include_router(auth_router)
+app.include_router(resumes_router)
 
 
 @app.get("/")
