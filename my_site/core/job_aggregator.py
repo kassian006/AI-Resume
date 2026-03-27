@@ -14,41 +14,27 @@ class JobAggregator:
         self.sources = [
             {
                 "name": "devkg",
-                "urls": [
-                    f"https://devkg.com/ru/jobs?page={page}"
-                    for page in range(1, 7)
-                ],
+                "urls": [f"https://devkg.com/ru/jobs?page={page}" for page in range(1, 7)],
                 "parser": DevKGParser(),
             },
             {
                 "name": "headhunter",
-                "urls": [
-                    f"https://bishkek.headhunter.kg/search/vacancy?page={page}"
-                    for page in range(0, 5)
-                ],
+                "urls": [f"https://bishkek.headhunter.kg/search/vacancy?page={page}" for page in range(0, 5)],
                 "parser": HeadHunterParser(),
             },
             {
                 "name": "joblab",
-                "urls": [
-                    "https://joblab.kg/"
-                ],
+                "urls": ["https://joblab.kg/"],
                 "parser": JobLabParser(),
             },
             {
                 "name": "habr",
-                "urls": [
-                    f"https://career.habr.com/vacancies?page={page}"
-                    for page in range(1, 6)
-                ],
+                "urls": [f"https://career.habr.com/vacancies?page={page}" for page in range(1, 6)],
                 "parser": HabrCareerParser(),
             },
             {
                 "name": "newjob",
-                "urls": [
-                    f"https://newjob.kg/vacancies?page={page}"
-                    for page in range(1, 6)
-                ],
+                "urls": [f"https://newjob.kg/vacancies?page={page}" for page in range(1, 6)],
                 "parser": NewJobParser(),
             },
         ]

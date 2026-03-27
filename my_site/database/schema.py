@@ -388,23 +388,27 @@ ResumeImprovementIterationResponse.model_rebuild()
 JobResponse.model_rebuild()
 JobMatchResponse.model_rebuild()
 
-class MatchRequest(BaseModel):
-    resume_text: str
 
-
-class JobItem(BaseModel):
+class JobOut(BaseModel):
     job_title: str
     company: str
-    salary: str
-    location: str
+    salary: Optional[str] = "Не указана"
+    location: Optional[str] = "Не указана"
     source: str
     url: str
-    remote: bool
-    visa_support: bool
-    match_score: int
-    why_match: List[str]
+    remote: bool = False
+    visa_support: bool = False
+    match_score: int = 0
+    why_match: List[str] = Field(default_factory=list)
 
 
 class MatchResponse(BaseModel):
     total: int
-    jobs: List[JobItem]
+    skills_found: List[str] = Field(default_factory=list)
+    jobs: List[JobOut] = Field(default_factory=list)
+
+
+class ImproveResumeResponse(BaseModel):
+    original_text: str
+    improved_text: str
+    suggestions: List[str] = Field(default_factory=list)
