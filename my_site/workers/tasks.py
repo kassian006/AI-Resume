@@ -22,7 +22,7 @@ def _safe_str(value: object) -> str | None:
     return None
 
 
-@celery_app.task
+@celery_app.task(name="my_site.workers.tasks.process_resume_session")
 def process_resume_session(session_id: int):
     db = SessionLocal()
     session: ResumeSession | None = None
@@ -32,6 +32,7 @@ def process_resume_session(session_id: int):
         if not session:
             return
 
+        # Отдельно фиксируем PROCESSING, чтобы фронт сразу видел изменение статуса
         session.status = SessionStatus.PROCESSING
         db.commit()
 
@@ -46,7 +47,7 @@ def process_resume_session(session_id: int):
         with open(file_path, "rb") as f:
             file_bytes = f.read()
 
-        # 1. OCR
+        # 1. OCR only
         ocr_client = OCRClient()
         ocr_result = ocr_client.extract_file(file_bytes, resume_file.original_filename)
         original_text = (ocr_result.get("text") or "").strip()
@@ -62,55 +63,46 @@ def process_resume_session(session_id: int):
             structured_json=ocr_result,
         )
         db.add(original_version)
-        db.commit()
-        db.refresh(original_version)
+        db.flush()  # нужен id без промежуточного commit
 
-        # 2. Dify
+        # 2. Dify analysis
         dify_client = DifyClient()
         dify_raw_response = dify_client.analyze_resume(original_text)
         dify_result = dify_client.extract_result_json(dify_raw_response)
-
-        improved_text = dify_client.build_improved_text(original_text, dify_result)
+        import json
+        print("DIFY RESULT:", json.dumps(dify_result, indent=2, ensure_ascii=False))
 
         summary = (
-            _safe_str(dify_result.get("summary"))
-            or _safe_str(dify_result.get("final_message"))
-            or "Resume improvement completed"
+            _safe_str(dify_result.get("final_message"))
+            or _safe_str(dify_result.get("summary"))
+            or "Resume analysis completed"
         )
-
-        improved_version = ResumeTextVersion(
-            session_id=session.id,
-            version_no=2,
-            source_type=ResumeSourceType.IMPROVED,
-            raw_text=improved_text,
-            structured_json=dify_result,
-        )
-        db.add(improved_version)
-        db.commit()
-        db.refresh(improved_version)
 
         iteration = ResumeImprovementIteration(
             session_id=session.id,
             input_version_id=original_version.id,
-            output_version_id=improved_version.id,
-            dify_response_json=dify_raw_response,
+            output_version_id=None,
+            dify_response_json=dify_result,
             summary=summary,
         )
         db.add(iteration)
-        db.commit()
-        db.refresh(iteration)
 
         session.current_iteration = 1
         session.status = SessionStatus.COMPLETED
+
+        # Один финальный commit на все результаты
         db.commit()
 
     except Exception as e:
         db.rollback()
 
         if session is not None:
-            session.status = SessionStatus.FAILED
-            db.add(session)
-            db.commit()
+            try:
+                session.status = SessionStatus.FAILED
+                db.add(session)
+                db.commit()
+            except Exception:
+                db.rollback()
 
         raise RuntimeError(
             f"process_resume_session failed for session_id={session_id}: {e}"

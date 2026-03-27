@@ -3,9 +3,7 @@ from __future__ import annotations
 from typing import Any
 import json
 import re
-
 import httpx
-
 from my_site.config import DIFY_API_KEY, DIFY_BASE_URL
 
 
@@ -55,7 +53,6 @@ class DifyClient:
 
         text = raw_result.strip()
 
-        # ```json ... ```
         fenced_match = re.match(
             r"^```(?:json)?\s*(.*?)\s*```$",
             text,
@@ -72,7 +69,7 @@ class DifyClient:
         except json.JSONDecodeError:
             pass
 
-        # fallback: ищем первый полноценный JSON-объект внутри текста
+        # fallback: try to extract the first JSON object from the text
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end != -1 and end > start:
@@ -83,26 +80,3 @@ class DifyClient:
             return parsed
 
         raise ValueError(f"Failed to parse Dify result JSON: {raw_result}")
-
-    def build_improved_text(
-        self,
-        original_text: str,
-        dify_result: dict[str, Any],
-    ) -> str:
-        """
-        Приоритет:
-        1. full/improved resume text из workflow
-        2. fallback: исходный текст
-        """
-        candidates = [
-            dify_result.get("improved_resume_text"),
-            dify_result.get("improved_text"),
-            dify_result.get("final_resume"),
-            dify_result.get("resume_text"),
-        ]
-
-        for value in candidates:
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-
-        return original_text

@@ -254,9 +254,9 @@ class ResumeImprovementIteration(Base):
         index=True,
     )
 
-    output_version_id: Mapped[int] = mapped_column(
+    output_version_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("resume_text_versions.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
 
@@ -277,7 +277,7 @@ class ResumeImprovementIteration(Base):
         foreign_keys=[input_version_id],
     )
 
-    output_version: Mapped["ResumeTextVersion"] = relationship(
+    output_version: Mapped[Optional["ResumeTextVersion"]] = relationship(
         back_populates="output_iterations",
         foreign_keys=[output_version_id],
     )

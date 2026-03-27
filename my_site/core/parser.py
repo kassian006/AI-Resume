@@ -14,7 +14,9 @@ class ResumeParser:
         for page in reader.pages:
             text = page.extract_text()
             if text:
-                pages_text.append(text)
+                cleaned = text.strip()
+                if cleaned:
+                    pages_text.append(cleaned)
 
         return "\n".join(pages_text).strip()
 
@@ -24,3 +26,15 @@ class ResumeParser:
             "char_count": len(text),
             "word_count": len(text.split()),
         }
+
+    def is_text_usable(self, text: str, min_chars: int = 80) -> bool:
+        if not isinstance(text, str):
+            return False
+
+        cleaned = " ".join(text.split()).strip()
+        if len(cleaned) < min_chars:
+            return False
+
+        # очень грубый фильтр мусора
+        letters = sum(1 for ch in cleaned if ch.isalpha())
+        return letters >= min_chars // 2

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional, Any
+
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 from .models import (
@@ -49,6 +50,7 @@ class TokenResponse(BaseModel):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
+
 # =========================
 # Resume File
 # =========================
@@ -95,22 +97,6 @@ class ResumeSessionResponse(ORMBaseSchema):
     updated_at: datetime
 
 
-class ResumeSessionDetailResponse(ORMBaseSchema):
-    id: int
-    user_id: int
-    resume_file_id: int
-    session_type: SessionType
-    status: SessionStatus
-    current_iteration: int
-    created_at: datetime
-    updated_at: datetime
-
-    resume_file: Optional["ResumeFileResponse"] = None
-    text_versions: list["ResumeTextVersionResponse"] = Field(default_factory=list)
-    improvement_iterations: list["ResumeImprovementIterationResponse"] = Field(default_factory=list)
-    job_matches: list["JobMatchResponse"] = Field(default_factory=list)
-
-
 class ResumeSessionStopRequest(BaseModel):
     stop: bool = True
 
@@ -154,7 +140,7 @@ class ResumeTextVersionResponse(ORMBaseSchema):
 class ResumeImprovementIterationCreate(BaseModel):
     session_id: int
     input_version_id: int
-    output_version_id: int
+    output_version_id: Optional[int] = None
     dify_response_json: Optional[dict[str, Any]] = None
     ats_score: Optional[float] = None
     summary: Optional[str] = None
@@ -164,7 +150,7 @@ class ResumeImprovementIterationResponse(ORMBaseSchema):
     id: int
     session_id: int
     input_version_id: int
-    output_version_id: int
+    output_version_id: Optional[int] = None
     dify_response_json: Optional[dict[str, Any]] = None
     ats_score: Optional[float] = None
     summary: Optional[str] = None
@@ -340,11 +326,9 @@ class PaginatedResponse(BaseModel):
     items: list[Any]
 
 
-ResumeSessionDetailResponse.model_rebuild()
-ResumeImprovementIterationResponse.model_rebuild()
-JobResponse.model_rebuild()
-JobMatchResponse.model_rebuild()
-
+# =========================
+# Resume upload responses
+# =========================
 
 class ResumeUploadResponse(BaseModel):
     resume_file_id: int
@@ -363,24 +347,20 @@ class ResumeUploadQueuedResponse(BaseModel):
     message: str
 
 
+# =========================
+# Resume analysis result
+# =========================
+
 class ResumeImprovementErrorItem(BaseModel):
     original: str
     improved: str
     advice: str
 
 
-class ResumeVersionBriefResponse(BaseModel):
-    id: int
-    version_no: int
-    source_type: ResumeSourceType
-    raw_text: str
-    structured_json: Optional[dict[str, Any]] = None
-    created_at: datetime
-
-
-class ResumeSessionResultResponse(BaseModel):
+class ResumeAnalysisResultResponse(BaseModel):
+    greeting: str = ""
     errors: list[ResumeImprovementErrorItem] = Field(default_factory=list)
-    summary: Optional[str] = None
+    final_message: str = ""
 
 
 class ResumeSessionDetailResponse(BaseModel):
@@ -389,12 +369,7 @@ class ResumeSessionDetailResponse(BaseModel):
     filename: str
     status: SessionStatus
     current_iteration: int
-
-    original_version: Optional[ResumeVersionBriefResponse] = None
-    improved_version: Optional[ResumeVersionBriefResponse] = None
-
-    result: ResumeSessionResultResponse = Field(default_factory=ResumeSessionResultResponse)
-
+    result: ResumeAnalysisResultResponse = Field(default_factory=ResumeAnalysisResultResponse)
     created_at: datetime
     updated_at: datetime
 
@@ -407,3 +382,8 @@ class ResumeSessionListItemResponse(BaseModel):
     current_iteration: int
     created_at: datetime
     updated_at: datetime
+
+
+ResumeImprovementIterationResponse.model_rebuild()
+JobResponse.model_rebuild()
+JobMatchResponse.model_rebuild()

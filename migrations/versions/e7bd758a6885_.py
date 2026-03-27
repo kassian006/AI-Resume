@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 31e68933a2a0
-Revises: 7513fb40ab3a
-Create Date: 2026-03-24 14:20:35.154800
+Revision ID: e7bd758a6885
+Revises: 
+Create Date: 2026-03-27 12:38:34.126698
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '31e68933a2a0'
-down_revision: Union[str, Sequence[str], None] = '7513fb40ab3a'
+revision: str = 'e7bd758a6885'
+down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -72,11 +72,19 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('source_id', 'external_id', name='uq_jobs_source_external')
     )
-    op.create_index(op.f('ix_jobs_company'), 'jobs', ['company'], unique=False)
+    op.create_index('ix_jobs_company', 'jobs', ['company'], unique=False)
     op.create_index('ix_jobs_is_active', 'jobs', ['is_active'], unique=False)
     op.create_index('ix_jobs_published_at', 'jobs', ['published_at'], unique=False)
     op.create_index(op.f('ix_jobs_source_id'), 'jobs', ['source_id'], unique=False)
     op.create_index(op.f('ix_jobs_title'), 'jobs', ['title'], unique=False)
+    op.create_table('refresh_token',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('token', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('resume_files',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -147,7 +155,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
     sa.Column('input_version_id', sa.Integer(), nullable=False),
-    sa.Column('output_version_id', sa.Integer(), nullable=False),
+    sa.Column('output_version_id', sa.Integer(), nullable=True),
     sa.Column('dify_response_json', sa.JSON(), nullable=True),
     sa.Column('ats_score', sa.Float(), nullable=True),
     sa.Column('summary', sa.Text(), nullable=True),
@@ -191,11 +199,12 @@ def downgrade() -> None:
     op.drop_table('resume_sessions')
     op.drop_index(op.f('ix_resume_files_user_id'), table_name='resume_files')
     op.drop_table('resume_files')
+    op.drop_table('refresh_token')
     op.drop_index(op.f('ix_jobs_title'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_source_id'), table_name='jobs')
     op.drop_index('ix_jobs_published_at', table_name='jobs')
     op.drop_index('ix_jobs_is_active', table_name='jobs')
-    op.drop_index(op.f('ix_jobs_company'), table_name='jobs')
+    op.drop_index('ix_jobs_company', table_name='jobs')
     op.drop_table('jobs')
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_index(op.f('ix_users_external_auth_id'), table_name='users')

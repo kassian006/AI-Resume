@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
@@ -12,19 +11,16 @@ from my_site.database.models import (
     User,
     ResumeFile,
     ResumeSession,
-    ResumeTextVersion,
     ResumeImprovementIteration,
     SessionType,
     SessionStatus,
-    ResumeSourceType,
 )
 from my_site.database.schema import (
     ResumeUploadQueuedResponse,
     ResumeSessionDetailResponse,
     ResumeSessionListItemResponse,
-    ResumeTextVersionResponse,
-    ResumeVersionBriefResponse,
-    ResumeSessionResultResponse,
+    # ResumeTextVersionResponse,
+    ResumeAnalysisResultResponse,
     ResumeImprovementErrorItem,
 )
 from my_site.core.security import get_current_user
@@ -36,127 +32,44 @@ MEDIA_ROOT = Path("media")
 RESUMES_DIR = MEDIA_ROOT / "resumes"
 
 
-def _extract_errors_from_iteration(
-    iteration: ResumeImprovementIteration | None,
-) -> list[ResumeImprovementErrorItem]:
+def _parse_result_from_iteration(iteration: ResumeImprovementIteration | None,) -> ResumeAnalysisResultResponse:
     if not iteration:
-        return []
+        return ResumeAnalysisResultResponse()
 
     payload = iteration.dify_response_json
     if not isinstance(payload, dict):
-        return []
+        return ResumeAnalysisResultResponse()
 
-    # ожидаем либо сырой Dify response, либо уже нормализованный json
-    result_obj: dict[str, Any] | None = None
+    greeting = payload.get("greeting", "")
+    final_message = payload.get("final_message", "")
+    raw_errors = payload.get("errors", [])
 
-    data = payload.get("data")
-    if isinstance(data, dict):
-        outputs = data.get("outputs")
-        if isinstance(outputs, dict):
-            maybe_result = outputs.get("result")
-            if isinstance(maybe_result, dict):
-                result_obj = maybe_result
+    errors: list[ResumeImprovementErrorItem] = []
 
-    if result_obj is None:
-        result_obj = payload
+    if isinstance(raw_errors, list):
+        for item in raw_errors:
+            if not isinstance(item, dict):
+                continue
 
-    raw_errors = result_obj.get("errors")
-    if not isinstance(raw_errors, list):
-        return []
+            original = item.get("original", "")
+            improved = item.get("improved", "")
+            advice = item.get("advice", "")
 
-    parsed_errors: list[ResumeImprovementErrorItem] = []
+            if (isinstance(original, str)
+                and isinstance(improved, str)
+                and isinstance(advice, str)):
+                errors.append(
+                    ResumeImprovementErrorItem(
+                        original=original,
+                        improved=improved,
+                        advice=advice,
+                    ))
 
-    for item in raw_errors:
-        if not isinstance(item, dict):
-            continue
-
-        original = item.get("original")
-        improved = item.get("improved")
-        advice = item.get("advice")
-
-        if (
-            isinstance(original, str)
-            and isinstance(improved, str)
-            and isinstance(advice, str)
-        ):
-            parsed_errors.append(
-                ResumeImprovementErrorItem(
-                    original=original,
-                    improved=improved,
-                    advice=advice,
-                )
-            )
-
-    return parsed_errors
-
-
-def _extract_summary(
-    iteration: ResumeImprovementIteration | None,
-    improved_version: ResumeTextVersion | None,
-) -> str | None:
-    if iteration and isinstance(iteration.summary, str) and iteration.summary.strip():
-        return iteration.summary.strip()
-
-    if improved_version and isinstance(improved_version.structured_json, dict):
-        structured = improved_version.structured_json
-
-        for key in ("summary", "final_message"):
-            value = structured.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-
-    return None
-
-
-def _to_version_brief(version: ResumeTextVersion | None) -> ResumeVersionBriefResponse | None:
-    if version is None:
-        return None
-
-    return ResumeVersionBriefResponse(
-        id=version.id,
-        version_no=version.version_no,
-        source_type=version.source_type,
-        raw_text=version.raw_text,
-        structured_json=version.structured_json,
-        created_at=version.created_at,
+    return ResumeAnalysisResultResponse(
+        greeting=greeting if isinstance(greeting, str) else "",
+        errors=errors,
+        final_message=final_message if isinstance(final_message, str) else "",
     )
-
-
-def _build_session_detail(session: ResumeSession) -> ResumeSessionDetailResponse:
-    versions = sorted(session.text_versions or [], key=lambda x: x.version_no)
-    iterations = sorted(session.improvement_iterations or [], key=lambda x: x.id)
-
-    original_version = next(
-        (v for v in versions if v.source_type in {ResumeSourceType.OCR, ResumeSourceType.PDF_TEXT}),
-        None,
-    )
-
-    improved_version = next(
-        (v for v in reversed(versions) if v.source_type == ResumeSourceType.IMPROVED),
-        None,
-    )
-
-    latest_iteration = iterations[-1] if iterations else None
-
-    errors = _extract_errors_from_iteration(latest_iteration)
-    summary = _extract_summary(latest_iteration, improved_version)
-
-    return ResumeSessionDetailResponse(
-        session_id=session.id,
-        resume_file_id=session.resume_file_id,
-        filename=session.resume_file.original_filename if session.resume_file else "",
-        status=session.status,
-        current_iteration=session.current_iteration,
-        original_version=_to_version_brief(original_version),
-        improved_version=_to_version_brief(improved_version),
-        result=ResumeSessionResultResponse(
-            errors=errors,
-            summary=summary,
-        ),
-        created_at=session.created_at,
-        updated_at=session.updated_at,
-    )
-
 
 @resumes_router.post(
     "/upload",
@@ -224,7 +137,7 @@ def upload_resume(
         resume_file_id=resume_file.id,
         session_id=session.id,
         filename=resume_file.original_filename,
-        status=session.status.value,
+        status=session.status.value if hasattr(session.status, "value") else str(session.status),
         message="Resume uploaded and queued for processing",
     )
 
@@ -272,7 +185,6 @@ def get_resume_session(
         db.query(ResumeSession)
         .options(
             joinedload(ResumeSession.resume_file),
-            joinedload(ResumeSession.text_versions),
             joinedload(ResumeSession.improvement_iterations),
         )
         .filter(
@@ -288,38 +200,44 @@ def get_resume_session(
             detail="Session not found",
         )
 
-    return _build_session_detail(session)
+    iterations = sorted(session.improvement_iterations or [], key=lambda x: x.id)
+    latest_iteration = iterations[-1] if iterations else None
+    result = _parse_result_from_iteration(latest_iteration)
 
-
-@resumes_router.get(
-    "/sessions/{session_id}/versions",
-    response_model=list[ResumeTextVersionResponse],
-)
-def get_versions(
-    session_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    session = (
-        db.query(ResumeSession)
-        .filter(
-            ResumeSession.id == session_id,
-            ResumeSession.user_id == current_user.id,
-        )
-        .first()
+    return ResumeSessionDetailResponse(
+        session_id=session.id,
+        resume_file_id=session.resume_file_id,
+        filename=session.resume_file.original_filename if session.resume_file else "",
+        status=session.status,
+        current_iteration=session.current_iteration,
+        result=result,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
     )
 
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found",
-        )
 
-    versions = (
-        db.query(ResumeTextVersion)
-        .filter(ResumeTextVersion.session_id == session_id)
-        .order_by(ResumeTextVersion.version_no.asc())
-        .all()
-    )
-
-    return versions
+# @resumes_router.get(
+#     "/sessions/{session_id}/versions",
+#     response_model=list[ResumeTextVersionResponse],
+# )
+# def get_versions(
+#     session_id: int,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user),
+# ):
+#     session = (
+#         db.query(ResumeSession)
+#         .filter(
+#             ResumeSession.id == session_id,
+#             ResumeSession.user_id == current_user.id,
+#         )
+#         .first()
+#     )
+#
+#     if not session:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Session not found",
+#         )
+#
+#     return []
