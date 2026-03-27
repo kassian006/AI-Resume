@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
@@ -387,3 +387,24 @@ class ResumeSessionListItemResponse(BaseModel):
 ResumeImprovementIterationResponse.model_rebuild()
 JobResponse.model_rebuild()
 JobMatchResponse.model_rebuild()
+
+class MatchRequest(BaseModel):
+    resume_text: str
+
+
+class JobItem(BaseModel):
+    job_title: str
+    company: str
+    salary: str
+    location: str
+    source: str
+    url: str
+    remote: bool
+    visa_support: bool
+    match_score: int
+    why_match: List[str]
+
+
+class MatchResponse(BaseModel):
+    total: int
+    jobs: List[JobItem]
