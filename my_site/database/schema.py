@@ -400,6 +400,9 @@ class JobOut(BaseModel):
     visa_support: bool = False
     match_score: int = 0
     why_match: List[str] = Field(default_factory=list)
+    missing_skills: List[str] = Field(default_factory=list)
+    candidate_profile: Optional[str] = None
+    source_type: Optional[str] = None
 
 
 class MatchResponse(BaseModel):
@@ -412,3 +415,16 @@ class ImproveResumeResponse(BaseModel):
     original_text: str
     improved_text: str
     suggestions: List[str] = Field(default_factory=list)
+
+
+class ResumeMatchResultResponse(BaseModel):
+    session_id: int
+    resume_file_id: int
+    filename: str
+    status: SessionStatus
+    current_iteration: int
+    skills_found: List[str] = Field(default_factory=list)
+    jobs: List[JobOut] = Field(default_factory=list)
+    final_message: str = ""
+    created_at: datetime
+    updated_at: datetime
