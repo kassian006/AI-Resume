@@ -8,6 +8,7 @@ def init_state():
         "user_email": None,
         "page": "login",
         "selected_session_id": None,
+        "job_match_result": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:

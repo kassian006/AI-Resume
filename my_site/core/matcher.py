@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import Any
 
 
@@ -19,8 +18,11 @@ SKILLS_DB = [
 
 
 class ResumeJobMatcher:
+    def normalize_text(self, text: str) -> str:
+        return " ".join((text or "").lower().split())
+
     def extract_skills(self, resume_text: str) -> list[str]:
-        text = resume_text.lower()
+        text = self.normalize_text(resume_text)
         found: list[str] = []
 
         for skill in SKILLS_DB:
@@ -33,20 +35,21 @@ class ResumeJobMatcher:
         self,
         jobs: list[dict[str, Any]],
         resume_text: str,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[str], list[dict[str, Any]]]:
         skills = self.extract_skills(resume_text)
 
         if not skills:
-            return jobs
+            return [], []
 
         matched: list[dict[str, Any]] = []
 
         for job in jobs:
-            job_title = (job.get("job_title") or "").lower()
+            job_title = self.normalize_text(job.get("job_title", ""))
             job_text = " ".join([
                 job_title,
-                (job.get("company") or "").lower(),
-                (job.get("location") or "").lower(),
+                self.normalize_text(job.get("company", "")),
+                self.normalize_text(job.get("location", "")),
+                self.normalize_text(job.get("salary", "")),
             ])
 
             matched_skills: list[str] = []
@@ -60,11 +63,11 @@ class ResumeJobMatcher:
                     matched_skills.append(skill)
                     score += 1
 
-            if score > 0:
+            if score >= 2:
                 job_copy = job.copy()
                 job_copy["match_score"] = score
                 job_copy["why_match"] = matched_skills
                 matched.append(job_copy)
 
         matched.sort(key=lambda j: j["match_score"], reverse=True)
-        return matched
+        return skills, matched[:20]

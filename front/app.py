@@ -6,6 +6,7 @@ from pages.login_page import render_login_page
 from pages.dashboard_page import render_dashboard_page
 from pages.session_detail_page import render_session_detail_page
 from pages.about_page import render_about_page
+from pages.job_match_page import render_job_match_page
 
 
 def sidebar():
@@ -14,6 +15,10 @@ def sidebar():
     if st.session_state.access_token:
         if st.sidebar.button("Dashboard", use_container_width=True):
             st.session_state.page = "dashboard"
+            st.rerun()
+
+        if st.sidebar.button("Job Match", use_container_width=True):
+            st.session_state.page = "job_match"
             st.rerun()
 
         if st.sidebar.button("About", use_container_width=True):
@@ -42,6 +47,8 @@ def main():
         render_dashboard_page()
     elif st.session_state.page == "session_detail":
         render_session_detail_page()
+    elif st.session_state.page == "job_match":
+        render_job_match_page()
     elif st.session_state.page == "about":
         render_about_page()
     else:

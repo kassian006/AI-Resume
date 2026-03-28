@@ -74,3 +74,14 @@ def upload_resume(token: str, uploaded_file):
         )
     }
     return api_request("POST", "/resumes/upload", token=token, files=files)
+
+
+def match_jobs_from_resume(uploaded_file):
+    files = {
+        "file": (
+            uploaded_file.name,
+            uploaded_file.getvalue(),
+            "application/pdf",
+        )
+    }
+    return api_request("POST", "/jobs/match-from-file", files=files)

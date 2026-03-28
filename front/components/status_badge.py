@@ -60,3 +60,34 @@ def apply_global_styles():
         """,
         unsafe_allow_html=True,
     )
+
+def render_status_badge(status: str):
+    status = (status or "").lower()
+
+    badge_map = {
+        "queued": ("📥 Queued", "#3b82f6"),
+        "processing": ("⏳ Processing", "#f59e0b"),
+        "completed": ("✅ Completed", "#22c55e"),
+        "failed": ("❌ Failed", "#ef4444"),
+        "stopped": ("⏹ Stopped", "#6b7280"),
+    }
+
+    label, color = badge_map.get(status, (f"ℹ️ {status}", "#9ca3af"))
+
+    st.markdown(
+        f"""
+        <div style="
+            display:inline-block;
+            padding:6px 12px;
+            border-radius:999px;
+            border:1px solid {color};
+            background:{color}22;
+            color:white;
+            font-weight:600;
+            font-size:14px;
+        ">
+            {label}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

@@ -23,7 +23,7 @@ from my_site.core.security import (
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@auth_router.post("/page.tsx/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@auth_router.post("/register/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)) -> UserResponse:
     email_db = db.query(User).filter(User.email == user.email).first()
     if email_db:
