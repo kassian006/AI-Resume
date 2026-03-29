@@ -111,6 +111,8 @@ def _parse_result_from_iteration(
         return ResumeAnalysisResultResponse()
 
     greeting = payload.get("greeting", "")
+    status_value = payload.get("status", "")
+    improved_resume = payload.get("improved_resume", "")
     final_message = payload.get("final_message", "")
     raw_errors = payload.get("errors", [])
 
@@ -140,6 +142,8 @@ def _parse_result_from_iteration(
 
     return ResumeAnalysisResultResponse(
         greeting=greeting if isinstance(greeting, str) else "",
+        status=status_value if isinstance(status_value, str) else "",
+        improved_resume=improved_resume if isinstance(improved_resume, str) else "",
         errors=errors,
         final_message=final_message if isinstance(final_message, str) else "",
     )
@@ -267,6 +271,7 @@ def list_resume_sessions(
             session_id=session.id,
             resume_file_id=session.resume_file_id,
             filename=session.resume_file.original_filename if session.resume_file else "",
+            session_type=session.session_type,
             status=session.status,
             current_iteration=session.current_iteration,
             created_at=session.created_at,
@@ -312,6 +317,7 @@ def get_resume_session(
         session_id=session.id,
         resume_file_id=session.resume_file_id,
         filename=session.resume_file.original_filename if session.resume_file else "",
+        session_type=session.session_type,
         status=session.status,
         current_iteration=session.current_iteration,
         result=result,

@@ -359,6 +359,8 @@ class ResumeImprovementErrorItem(BaseModel):
 
 class ResumeAnalysisResultResponse(BaseModel):
     greeting: str = ""
+    status: str = ""
+    improved_resume: str = ""
     errors: list[ResumeImprovementErrorItem] = Field(default_factory=list)
     final_message: str = ""
 
@@ -367,6 +369,7 @@ class ResumeSessionDetailResponse(BaseModel):
     session_id: int
     resume_file_id: int
     filename: str
+    session_type: SessionType
     status: SessionStatus
     current_iteration: int
     result: ResumeAnalysisResultResponse = Field(default_factory=ResumeAnalysisResultResponse)
@@ -378,6 +381,7 @@ class ResumeSessionListItemResponse(BaseModel):
     session_id: int
     resume_file_id: int
     filename: str
+    session_type: SessionType
     status: SessionStatus
     current_iteration: int
     created_at: datetime

@@ -12,13 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirement.txt /app/requirement.txt
+
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirement.txt
 
 COPY . /app
 
 RUN mkdir -p /app/media
-
-EXPOSE 8001
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
